@@ -1,0 +1,161 @@
+import React, { useState, useEffect } from 'react';
+
+// Main App component for the Password Complexity Checker
+function App() {
+  const [password, setPassword] = useState(''); // State to store the current password input
+  const [strength, setStrength] = useState({
+    score: 0, // Numeric score for password strength
+    feedback: 'Enter a password', // Text feedback for the user
+    color: 'text-gray-500' // Tailwind CSS color class for feedback
+  });
+
+  // useEffect hook to re-evaluate password strength whenever the password changes
+  useEffect(() => {
+    evaluatePasswordStrength(password);
+  }, [password]);
+
+  // Function to evaluate the password strength
+  const evaluatePasswordStrength = (pwd) => {
+    let score = 0;
+    let feedback = 'Weak';
+    let color = 'text-red-500';
+
+    // Criteria checks using regular expressions
+    const hasLowercase = /[a-z]/.test(pwd);
+    const hasUppercase = /[A-Z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/.test(pwd);
+
+    // Score based on length
+    if (pwd.length >= 8) score += 1;
+    if (pwd.length >= 12) score += 1;
+    if (pwd.length >= 16) score += 1;
+
+    // Score based on character types
+    if (hasLowercase) score += 1;
+    if (hasUppercase) score += 1;
+    if (hasNumber) score += 1;
+    if (hasSpecialChar) score += 1;
+
+    // Determine feedback and color based on score
+    if (pwd.length === 0) {
+      feedback = 'Enter a password';
+      color = 'text-gray-500';
+      score = 0;
+    } else if (score < 3) {
+      feedback = 'Very Weak';
+      color = 'text-red-600';
+    } else if (score >= 3 && score < 5) {
+      feedback = 'Weak';
+      color = 'text-red-500';
+    } else if (score >= 5 && score < 7) {
+      feedback = 'Medium';
+      color = 'text-yellow-500';
+    } else if (score >= 7) {
+      feedback = 'Strong';
+      color = 'text-green-500';
+    }
+
+    setStrength({ score, feedback, color });
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-800 to-indigo-900 flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 hover:scale-105">
+        <h1 className="text-3xl font-extrabold text-center text-gray-900 mb-6">
+          Password Strength Checker
+        </h1>
+
+        <div className="mb-6">
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            Enter your password:
+          </label>
+          <input
+            type="password"
+            id="password"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-gray-800"
+            placeholder="Type your password here..."
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            aria-label="Password input"
+          />
+        </div>
+
+        {/* Password strength feedback section */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">Password Strength:</h2>
+          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+            <div
+              className={`h-2.5 rounded-full transition-all duration-500 ease-in-out
+                ${strength.score === 0 ? 'w-0 bg-gray-400' : ''}
+                ${strength.score > 0 && strength.score < 3 ? 'w-1/4 bg-red-600' : ''}
+                ${strength.score >= 3 && strength.score < 5 ? 'w-2/4 bg-red-500' : ''}
+                ${strength.score >= 5 && strength.score < 7 ? 'w-3/4 bg-yellow-500' : ''}
+                ${strength.score >= 7 ? 'w-full bg-green-500' : ''}
+              `}
+              style={{ width: `${(strength.score / 7) * 100}%` }} // Dynamic width for progress bar
+              aria-valuenow={strength.score}
+              aria-valuemin="0"
+              aria-valuemax="7"
+              role="progressbar"
+            ></div>
+          </div>
+          <p className={`text-xl font-bold text-center ${strength.color}`}>
+            {strength.feedback}
+          </p>
+        </div>
+
+        {/* Criteria checklist */}
+        <div className="mt-6 border-t border-gray-200 pt-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">Criteria:</h2>
+          <ul className="space-y-2 text-gray-700">
+            <li className="flex items-center">
+              <span className={`mr-2 ${password.length >= 8 ? 'text-green-500' : 'text-red-400'}`}>
+                {password.length >= 8 ? '✓' : '✗'}
+              </span>
+              At least 8 characters long
+            </li>
+            <li className="flex items-center">
+              <span className={`mr-2 ${password.length >= 12 ? 'text-green-500' : 'text-red-400'}`}>
+                {password.length >= 12 ? '✓' : '✗'}
+              </span>
+              At least 12 characters long (for better strength)
+            </li>
+            <li className="flex items-center">
+              <span className={`mr-2 ${password.length >= 16 ? 'text-green-500' : 'text-red-400'}`}>
+                {password.length >= 16 ? '✓' : '✗'}
+              </span>
+              At least 16 characters long (for strong security)
+            </li>
+            <li className="flex items-center">
+              <span className={`mr-2 ${/[a-z]/.test(password) ? 'text-green-500' : 'text-red-400'}`}>
+                {/[a-z]/.test(password) ? '✓' : '✗'}
+              </span>
+              Contains lowercase letters
+            </li>
+            <li className="flex items-center">
+              <span className={`mr-2 ${/[A-Z]/.test(password) ? 'text-green-500' : 'text-red-400'}`}>
+                {/[A-Z]/.test(password) ? '✓' : '✗'}
+              </span>
+              Contains uppercase letters
+            </li>
+            <li className="flex items-center">
+              <span className={`mr-2 ${/[0-9]/.test(password) ? 'text-green-500' : 'text-red-400'}`}>
+                {/[0-9]/.test(password) ? '✓' : '✗'}
+              </span>
+              Contains numbers
+            </li>
+            <li className="flex items-center">
+              <span className={`mr-2 ${/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/.test(password) ? 'text-green-500' : 'text-red-400'}`}>
+                {/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/.test(password) ? '✓' : '✗'}
+              </span>
+              Contains special characters
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
