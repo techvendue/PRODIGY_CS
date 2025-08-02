@@ -1,0 +1,100 @@
+import sys
+from scapy.all import sniff, IP, TCP, UDP, Raw, Ether
+
+# --- Configuration ---
+# Define the network interface to sniff on.
+# You might need to change this based on your system.
+# Common interfaces:
+#   Windows: "Ethernet", "Wi-Fi", or specific adapter names (e.g., "\Device\NPF_{GUID}")
+#   Linux: "eth0", "wlan0"
+#   macOS: "en0", "en1"
+# You can use `scapy.all.show_interfaces()` to list available interfaces.
+NETWORK_INTERFACE = "Ethernet" # <--- IMPORTANT: CHANGE THIS TO YOUR NETWORK INTERFACE
+
+# --- Packet Processing Function ---
+def process_packet(packet):
+    """
+    This function is called for each captured packet.
+    It extracts and displays relevant information.
+    """
+    print("\n" + "="*50)
+    print(f"Packet Captured at: {packet.time}") # Timestamp of packet capture
+
+    # Ethernet Layer (Layer 2)
+    if packet.haslayer(Ether):
+        print(f"  MAC Source: {packet[Ether].src}")
+        print(f"  MAC Destination: {packet[Ether].dst}")
+        print(f"  EtherType: {packet[Ether].type}") # 0x0800 for IPv4, 0x0806 for ARP, etc.
+
+    # IP Layer (Layer 3)
+    if packet.haslayer(IP):
+        ip_layer = packet[IP]
+        print(f"  IP Source: {ip_layer.src}")
+        print(f"  IP Destination: {ip_layer.dst}")
+        print(f"  Protocol: {ip_layer.proto} ({ip_layer.get_field('proto').i2s[ip_layer.proto]})")
+        print(f"  TTL: {ip_layer.ttl}")
+        print(f"  IP Header Length: {ip_layer.ihl * 4} bytes") # IHL is in 32-bit words
+
+        # Transport Layer (Layer 4)
+        if packet.haslayer(TCP):
+            tcp_layer = packet[TCP]
+            print(f"    TCP Source Port: {tcp_layer.sport}")
+            print(f"    TCP Destination Port: {tcp_layer.dport}")
+            print(f"    TCP Flags: {tcp_layer.flags}")
+            print(f"    TCP Sequence Number: {tcp_layer.seq}")
+            print(f"    TCP Acknowledgment Number: {tcp_layer.ack}")
+            print(f"    TCP Window Size: {tcp_layer.window}")
+            # Check for Raw payload data
+            if packet.haslayer(Raw):
+                print(f"    TCP Payload: {packet[Raw].load.hex()}") # Display payload in hex
+                try:
+                    print(f"    TCP Payload (ASCII): {packet[Raw].load.decode('utf-8', errors='ignore')}")
+                except UnicodeDecodeError:
+                    pass # Cannot decode to UTF-8
+        elif packet.haslayer(UDP):
+            udp_layer = packet[UDP]
+            print(f"    UDP Source Port: {udp_layer.sport}")
+            print(f"    UDP Destination Port: {udp_layer.dport}")
+            print(f"    UDP Length: {udp_layer.len}")
+            # Check for Raw payload data
+            if packet.haslayer(Raw):
+                print(f"    UDP Payload: {packet[Raw].load.hex()}") # Display payload in hex
+                try:
+                    print(f"    UDP Payload (ASCII): {packet[Raw].load.decode('utf-8', errors='ignore')}")
+                except UnicodeDecodeError:
+                    pass # Cannot decode to UTF-8
+        else:
+            # Handle other Layer 4 protocols if needed
+            pass
+    else:
+        print("  Non-IP Packet (e.g., ARP, IPv6)")
+
+    print("="*50)
+
+# --- Main Program Execution ---
+if __name__ == "__main__":
+    print("Starting Network Packet Analyzer...")
+    print(f"Sniffing on interface: {NETWORK_INTERFACE}")
+    print("Press Ctrl+C to stop the analyzer.")
+
+    try:
+        # Start sniffing packets
+        # `prn=process_packet`: Calls process_packet for each packet
+        # `store=0`: Don't store packets in memory (saves resources)
+        # `iface=NETWORK_INTERFACE`: Specify the interface to listen on
+        # `filter=""`: No filter, capture all packets. You can add filters like "tcp port 80"
+        sniff(prn=process_packet, store=0, iface=NETWORK_INTERFACE)
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+        print("Possible issues:")
+        print("1. You might not have the 'scapy' library installed.")
+        print("   Install it using: pip install scapy")
+        print("2. You might not have Npcap (Windows) or libpcap (Linux/macOS) installed/configured correctly.")
+        print("   - Windows: Install Npcap from https://nmap.org/npcap/")
+        print("   - Linux: Install libpcap (e.g., sudo apt-get install libpcap-dev)")
+        print("3. You might not have sufficient permissions (run as administrator/root).")
+        print("4. The specified NETWORK_INTERFACE might be incorrect or unavailable.")
+        print("   Use `scapy.all.show_interfaces()` to list available interfaces.")
+        sys.exit(1)
+
+    print("\nNetwork Packet Analyzer stopped.")
