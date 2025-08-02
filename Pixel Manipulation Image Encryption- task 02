@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Manipulation Image Encryption</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter for a modern look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Apply the Inter font family to the body */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for canvas to ensure they are visible */
+        canvas {
+            background-color: #f3f4f6; /* light gray bg */
+            border: 1px dashed #9ca3af; /* dashed border */
+        }
+        .dark canvas {
+            background-color: #374151; /* dark gray bg for dark mode */
+            border-color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8">
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">Image Encryption Tool</h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Encrypt and decrypt images using pixel manipulation.</p>
+        </div>
+
+        <!-- Controls Area -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center mb-8">
+            <!-- File Input -->
+            <div class="md:col-span-1">
+                <label for="image-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">1. Upload Image</label>
+                <input type="file" id="image-input" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-900 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-800 transition duration-200">
+            </div>
+            <!-- Encryption Key -->
+            <div class="md:col-span-1">
+                <label for="key-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">2. Enter Key (1-255)</label>
+                <input type="number" id="key-input" min="1" max="255" value="50" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200" placeholder="e.g., 50">
+            </div>
+            <!-- Action Buttons -->
+            <div class="md:col-span-1 flex flex-col sm:flex-row md:flex-col gap-3">
+                 <button id="encrypt-btn" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 transition duration-300">Encrypt</button>
+                 <button id="decrypt-btn" class="w-full bg-gray-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-800 transition duration-300">Decrypt</button>
+            </div>
+        </div>
+        
+        <!-- Message Box for notifications -->
+        <div id="message-box" class="hidden text-center text-red-500 dark:text-red-400 mb-4 p-3 bg-red-100 dark:bg-red-900/20 rounded-lg"></div>
+
+        <!-- Canvas Display Area -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Original Image Canvas -->
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-2 text-center">Original</h2>
+                <canvas id="original-canvas" class="w-full rounded-lg"></canvas>
+            </div>
+            <!-- Processed Image Canvas -->
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-2 text-center">Processed</h2>
+                <canvas id="processed-canvas" class="w-full rounded-lg"></canvas>
+            </div>
+        </div>
+        
+        <!-- Download Button -->
+        <div class="text-center mt-8">
+            <button id="download-btn" class="hidden bg-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 dark:focus:ring-green-800 transition duration-300">
+                Download Processed Image
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const imageInput = document.getElementById('image-input');
+        const keyInput = document.getElementById('key-input');
+        const encryptBtn = document.getElementById('encrypt-btn');
+        const decryptBtn = document.getElementById('decrypt-btn');
+        const downloadBtn = document.getElementById('download-btn');
+
+        const originalCanvas = document.getElementById('original-canvas');
+        const processedCanvas = document.getElementById('processed-canvas');
+        const originalCtx = originalCanvas.getContext('2d');
+        const processedCtx = processedCanvas.getContext('2d');
+        
+        const messageBox = document.getElementById('message-box');
+        
+        let originalImageData = null;
+
+        /**
+         * Displays a message to the user in the message box.
+         * @param {string} text - The message to display.
+         * @param {boolean} isError - If true, formats as an error message.
+         */
+        function showMessage(text, isError = true) {
+            messageBox.textContent = text;
+            messageBox.classList.remove('hidden');
+            // Hide the message after 3 seconds
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        // --- Event Listener for File Input ---
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Set canvas dimensions to match the image
+                    originalCanvas.width = img.width;
+                    originalCanvas.height = img.height;
+                    processedCanvas.width = img.width;
+                    processedCanvas.height = img.height;
+
+                    // Draw the uploaded image onto the original canvas
+                    originalCtx.drawImage(img, 0, 0);
+                    
+                    // Store the raw pixel data for processing
+                    originalImageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
+
+                    // Clear the processed canvas and hide download button for a new image
+                    processedCtx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
+                    downloadBtn.classList.add('hidden');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        /**
+         * Core function to encrypt or decrypt image data.
+         * It uses a bitwise XOR operation which is its own inverse.
+         * (value XOR key) XOR key = value
+         * @param {string} mode - 'encrypt' or 'decrypt'. Though the logic is the same for both.
+         */
+        function processImage(mode) {
+            if (!originalImageData) {
+                showMessage('Please upload an image first.');
+                return;
+            }
+
+            const key = parseInt(keyInput.value, 10);
+            if (isNaN(key) || key < 1 || key > 255) {
+                showMessage('Please enter a valid key between 1 and 255.');
+                return;
+            }
+
+            // Get a copy of the original pixel data to manipulate
+            const imageData = new Uint8ClampedArray(originalImageData.data);
+            
+            // Loop through every pixel. The data is stored as [R, G, B, A, R, G, B, A, ...].
+            // We increment by 4 to process one pixel at a time.
+            for (let i = 0; i < imageData.length; i += 4) {
+                // Apply the XOR operation to the Red, Green, and Blue channels.
+                // We leave the Alpha channel (transparency) untouched.
+                imageData[i]     = imageData[i] ^ key;     // Red
+                imageData[i + 1] = imageData[i + 1] ^ key; // Green
+                imageData[i + 2] = imageData[i + 2] ^ key; // Blue
+            }
+
+            // Create a new ImageData object with the modified pixel array
+            const newImageData = new ImageData(imageData, originalCanvas.width, originalCanvas.height);
+
+            // Draw the new, processed image data onto the processed canvas
+            processedCtx.putImageData(newImageData, 0, 0);
+            
+            // Make the download button visible
+            downloadBtn.classList.remove('hidden');
+        }
+
+        // --- Event Listeners for Buttons ---
+        encryptBtn.addEventListener('click', () => processImage('encrypt'));
+        decryptBtn.addEventListener('click', () => processImage('decrypt'));
+
+        downloadBtn.addEventListener('click', () => {
+            // Create a temporary link element to trigger the download
+            const link = document.createElement('a');
+            
+            // Set the download filename
+            link.download = 'processed-image.png';
+            
+            // Convert the canvas content to a data URL (PNG format)
+            link.href = processedCanvas.toDataURL('image/png');
+            
+            // Programmatically click the link to start the download
+            link.click();
+        });
+
+    </script>
+</body>
+</html>
