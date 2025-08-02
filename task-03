@@ -1,3 +1,5 @@
+//Password Complexity Checker
+
 import React, { useState, useEffect } from 'react';
 
 // Main App component for the Password Complexity Checker
